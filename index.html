@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Habit Tracker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23121212'/><path d='M9 17l5 5 9-12' fill='none' stroke='%23f5f5f5' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="stylesheet" href="src/styles/popup.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ════ Header ════ -->
+  <header class="header">
+    <div class="header-left">
+      <h1 id="pageTitle">Habits</h1>
+      <p class="header-date" id="currentDate"></p>
+    </div>
+    <div class="header-right">
+      <button class="icon-btn" id="notifBtn"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ════ TAB: Habits ════ -->
+  <div class="tab-content active" id="tabHabits">
+
+    <div class="stats" id="statsHabits">
+      <div class="stat"><div class="stat-val" id="doneToday">0</div><div class="stat-lbl">Done Today</div></div>
+      <div class="stat"><div class="stat-val muted" id="bestStreak">0</div><div class="stat-lbl">Best Streak</div></div>
+      <div class="stat"><div class="stat-val green" id="completionRate">0%</div><div class="stat-lbl">Rate</div></div>
+    </div>
+
+    <div class="section" id="xpBar"></div>
+
+    <div class="section">
+      <div class="section-title">This Week</div>
+      <div class="week-grid" id="weekGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title" id="habitSectionTitle">Today's Focus</div>
+      <div class="habit-list" id="habitList"></div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: Stats ════ -->
+  <div class="tab-content" id="tabStats">
+    <div class="section">
+      <div class="section-title">Overview</div>
+      <div class="stats-grid" id="statsOverview"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Calendar</div>
+      <div id="calendarView"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Per Habit</div>
+      <div id="habitBreakdown"></div>
+    </div>
+  </div>
+
+  <!-- ════ TAB: Settings ════ -->
+  <div class="tab-content" id="tabSettings">
+    <div class="section">
+      <div class="settings-group">
+        <h3>Data</h3>
+        <div class="setting-card">
+          <div class="info"><div class="title">Export Data</div><div class="desc">Download your habits as JSON</div></div>
+          <button class="action-btn" id="exportBtn">Export</button>
+        </div>
+        <div class="setting-card">
+          <div class="info"><div class="title">Import Data</div><div class="desc">Restore from a JSON backup</div></div>
+          <button class="action-btn" id="importBtn">Import</button>
+          <input type="file" id="importFile" accept=".json" style="display:none">
+        </div>
+        <div class="setting-card">
+          <div class="info"><div class="title">Reset All</div><div class="desc">Delete all habits and history</div></div>
+          <button class="action-btn danger" id="resetBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>Archived Habits</h3>
+        <div id="archivedList"><div class="about-text">None archived.</div></div>
+      </div>
+
+      <div class="settings-group">
+        <h3>About</h3>
+        <div class="about-text">
+          Habit Tracker v1.0<br>
+          Built for building better routines.<br>
+          All data stored locally in your browser.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ FAB ════ -->
+<button class="fab" id="fab"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg></button>
+
+<!-- ════ Bottom Nav ════ -->
+<nav class="nav">
+  <button class="nav-btn active" data-tab="tabHabits">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path fill-rule="evenodd" d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 00-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 00-2.282.819l-.922 1.597a1.875 1.875 0 00.432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 000 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 00-.432 2.385l.922 1.597a1.875 1.875 0 002.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 002.28-.819l.923-1.597a1.875 1.875 0 00-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 000-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 00-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 00-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 00-1.85-1.567h-1.843zM12 15.75a3.75 3.75 0 100-7.5 3.75 3.75 0 000 7.5z" clip-rule="evenodd"/></svg>
+    <span class="nav-lbl">Habits</span>
+  </button>
+  <button class="nav-btn" data-tab="tabStats">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+    <span class="nav-lbl">Stats</span>
+  </button>
+  <button class="nav-btn" data-tab="tabSettings">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.212 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+    <span class="nav-lbl">Settings</span>
+  </button>
+</nav>
+
+<!-- ════ Add Habit Modal ════ -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <button class="modal-close" id="modalClose"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    <div class="modal-title">New Habit</div>
+
+    <div class="fld">
+      <label for="habitTitle">Title</label>
+      <input type="text" id="habitTitle" placeholder="e.g. Morning Run" autocomplete="off">
+    </div>
+
+    <div class="fld">
+      <label for="habitCategory">Category</label>
+      <select id="habitCategory"></select>
+    </div>
+
+    <div class="fld">
+      <label>Icon</label>
+      <div class="picker" id="iconPicker"></div>
+    </div>
+
+    <div class="fld">
+      <label>Color</label>
+      <div class="picker" id="colorPicker"></div>
+    </div>
+
+    <div class="fld">
+      <label>Schedule</label>
+      <select id="habitSchedule">
+        <option value="daily">Daily</option>
+        <option value="weekdays">Weekdays</option>
+        <option value="weekends">Weekends</option>
+        <option value="weekly">Weekly</option>
+      </select>
+    </div>
+
+    <div class="fld">
+      <label>Type</label>
+      <select id="habitType">
+        <option value="boolean">Check-off</option>
+        <option value="count">Count</option>
+        <option value="duration">Duration (min)</option>
+      </select>
+    </div>
+
+    <div class="fld" id="targetGroup" style="display:none">
+      <label for="habitTarget">Target</label>
+      <input type="number" id="habitTarget" placeholder="e.g. 10" min="1">
+    </div>
+
+    <div class="fld" id="unitGroup" style="display:none">
+      <label for="habitUnit">Unit</label>
+      <input type="text" id="habitUnit" placeholder="e.g. pushups, glasses, pages">
+    </div>
+
+    <button class="btn-primary" id="saveHabit">Create Habit</button>
+  </div>
+</div>
+
+<script type="module" src="src/scripts/popup.js"></script>
+</body>
+</html>
