@@ -15,6 +15,14 @@ const $$ = (s, p = document) => [...p.querySelectorAll(s)]
 document.addEventListener('DOMContentLoaded', async () => {
   await loadState()
   renderDate()
+  scheduleDateRefresh()
+  for (const el of $$('#tabHabits > *, #tabStats > *, #tabSettings > *')) {
+    for (let i = el.childNodes.length; i--;) {
+      if (el.childNodes[i].nodeType === 3 && el.childNodes[i].textContent.trim()) {
+        el.childNodes[i].remove()
+      }
+    }
+  }
   renderHabitsTab()
   renderStatsTab()
   renderSettingsTab()
@@ -36,6 +44,11 @@ async function persist() {
 function renderDate() {
   const el = $('#currentDate')
   if (el) el.textContent = formatDate(todayISO())
+}
+function scheduleDateRefresh() {
+  const now = new Date()
+  const ms = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now
+  setTimeout(() => { renderDate(); scheduleDateRefresh() }, ms)
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -112,6 +125,7 @@ function renderWeekGrid(habits) {
   const today = todayISO()
   const days = weekRange(today)
   container.innerHTML = days.map((d, i) => {
+    const dow = new Date(d + 'T12:00:00').getDay()
     const done = habits.filter(h => isDone(h, d)).length
     const pct = habits.length ? Math.round((done / habits.length) * 100) : 0
     const isFuture = d > today
@@ -122,7 +136,7 @@ function renderWeekGrid(habits) {
     else if (pct > 40) { cls = 'w-md'; label = `${pct}%` }
     else if (pct > 20) { cls = 'w-lo'; label = `${pct}%` }
     else if (pct > 0) { cls = 'w-mi'; label = `${pct}%` }
-    return `<div class="week-day ${isFuture ? 'op-40' : ''}"><span>${dayShort(i)}</span><div class="week-cell ${cls}">${isFuture ? '-' : label}</div></div>`
+    return `<div class="week-day ${isFuture ? 'op-40' : ''}"><span>${dayShort(dow)}</span><div class="week-cell ${cls}">${isFuture ? '-' : label}</div></div>`
   }).join('')
 }
 
