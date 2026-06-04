@@ -1,165 +1,671 @@
-import * as Store from './storage.js';
+import * as Store from './storage.js'
 import {
-  getToday, dayShort, SVG_ICONS, calcStreak, calcRate, todayISO,
-} from './helpers.js';
+  todayISO, formatDate, dayShort, weekRange, monthRange, calcStreak, calcRate, isDone,
+  calcLevel, calcTotalXP, calcBadges, calcNextLevelXP, confetti, SVG_ICONS,
+  CATEGORIES, ICON_OPTIONS, COLOR_OPTIONS, uid
+} from './helpers.js'
 
-/* ───── State ───── */
-let habits = [];
-let data = {};
-let currentDate = todayISO();
+let state = { habits: [], meta: { bestStreak: 0 } }
+let activeTab = 'tabHabits'
 
-/* ───── DOM refs ───── */
-const $ = (s, p = document) => p.querySelector(s);
-const $$ = (s, p = document) => [...p.querySelectorAll(s)];
+const $ = (s, p = document) => p.querySelector(s)
+const $$ = (s, p = document) => [...p.querySelectorAll(s)]
 
 /* ───── Init ───── */
 document.addEventListener('DOMContentLoaded', async () => {
-  await render();
-  setupEventListeners();
-});
+  await loadState()
+  renderDate()
+  renderHabitsTab()
+  renderStatsTab()
+  renderSettingsTab()
+  buildConfirmModal()
+  bindUI()
+})
 
-async function render() {
-  data = await Store.loadAll();
-  habits = data.habits || [];
+async function loadState() {
+  state = await Store.loadAll()
+  if (!state.meta.xp) state.meta.xp = calcTotalXP(state.habits)
+  state._badgeCount = calcBadges(state.habits, state.meta).length
+}
 
-  renderDate();
-  renderStats();
-  renderWeek();
-  renderHabits();
+async function persist() {
+  await Store.saveHabits(state.habits)
 }
 
 /* ───── Date ───── */
 function renderDate() {
-  const el = document.getElementById('currentDate');
-  if (!el) return;
-  const today = getToday();
-  el.textContent = `${today.weekday}, ${today.monthDay}`;
+  const el = $('#currentDate')
+  if (el) el.textContent = formatDate(todayISO())
 }
 
-/* ───── Stats ───── */
-function renderStats() {
-  const todayStr = todayISO();
-  const doneToday = habits.filter(h => h.history?.[todayStr]).length;
-  const bestStreak = data.bestStreak || 0;
-  const totalRate = calcRate(
-    Object.fromEntries(
-      habits.flatMap(h => Object.entries(h.history || {}))
-    )
-  );
+/* ══════════════════════════════════════════════════════════
+   TAB SWITCHING
+   ══════════════════════════════════════════════════════════ */
+function switchTab(id) {
+  activeTab = id
+  $$('.tab-content').forEach(el => el.classList.toggle('active', el.id === id))
+  $$('.nav-btn').forEach(el => el.classList.toggle('active', el.dataset.tab === id))
+  const titles = { tabHabits: 'Habits', tabStats: 'Stats', tabSettings: 'Settings' }
+  const titleEl = $('#pageTitle')
+  if (titleEl) titleEl.textContent = titles[id] || 'Habits'
 
-  const completedEl = document.getElementById('completedCount');
-  if (completedEl) completedEl.textContent = doneToday;
+  if (id === 'tabStats') renderStatsTab()
+  if (id === 'tabSettings') renderSettingsTab()
 
-  const streakEl = document.getElementById('bestStreak');
-  if (streakEl) streakEl.textContent = bestStreak;
-
-  const rateEl = document.getElementById('rate');
-  if (rateEl) rateEl.textContent = `${totalRate}%`;
+  const fab = $('#fab')
+  if (fab) fab.classList.toggle('hidden', id !== 'tabHabits')
 }
 
-/* ───── Week heatmap ───── */
-function renderWeek() {
-  const container = document.getElementById('weekGrid');
-  if (!container) return;
+/* ══════════════════════════════════════════════════════════
+   HABITS TAB
+   ══════════════════════════════════════════════════════════ */
+function renderHabitsTab() {
+  const today = todayISO()
+  const active = state.habits.filter(h => !h.archived)
+  const done = active.filter(h => isDone(h, today)).length
+  const total = active.length
 
-  const now = new Date();
-  const dayOfWeek = now.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + mondayOffset);
+  $('#doneToday').textContent = done
+  $('#bestStreak').textContent = state.meta.bestStreak || 0
 
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    days.push(d);
-  }
+  const allHistory = {}
+  active.forEach(h => Object.assign(allHistory, h.history || {}))
+  $('#completionRate').textContent = calcRate(allHistory) + '%'
 
+  renderXP()
+  renderWeekGrid(active)
+  renderHabitList(active)
+}
+
+function renderXP() {
+  const container = $('#xpBar')
+  if (!container) return
+  const xp = state.meta.xp || calcTotalXP(state.habits)
+  const level = calcLevel(xp)
+  const nextXP = calcNextLevelXP(level.level)
+  const prevXP = level.xp
+  const range = nextXP - prevXP
+  const progress = range ? Math.min(((xp - prevXP) / range) * 100, 100) : 100
+  const badges = calcBadges(state.habits, state.meta)
+
+  container.innerHTML = `
+<div class="xp-bar">
+  <div class="lvl-badge">${level.level}</div>
+  <div class="xp-info">
+    <div class="lvl-label">${level.name}</div>
+    <div class="xp-label">${xp} XP &middot; Next: ${nextXP} XP</div>
+    <div class="xp-track"><div class="xp-fill" style="width:${progress}%"></div></div>
+  </div>
+  <div class="badges">
+    ${badges.slice(0, 5).map(b => `<div class="mini-badge earned" title="${b.label}">${b.icon}</div>`).join('')}
+    ${badges.length > 5 ? `<div class="mini-badge earned">+${badges.length - 5}</div>` : ''}
+  </div>
+</div>`
+}
+
+function renderWeekGrid(habits) {
+  const container = $('#weekGrid')
+  if (!container) return
+  const today = todayISO()
+  const days = weekRange(today)
   container.innerHTML = days.map((d, i) => {
-    const key = d.toISOString().split('T')[0];
-    const total = habits.length || 1;
-    const done = habits.filter(h => h.history?.[key]).length;
-    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-    let bg = 'bg-slate-700';
-    let label = '-';
-    if (pct > 80) { bg = 'bg-primary'; label = `${pct}%`; }
-    else if (pct > 60) { bg = 'bg-primary/80'; label = `${pct}%`; }
-    else if (pct > 40) { bg = 'bg-primary/60'; label = `${pct}%`; }
-    else if (pct > 20) { bg = 'bg-primary/40'; label = `${pct}%`; }
-    else if (pct > 0) { bg = 'bg-primary/30'; label = `${pct}%`; }
-
-    const isFuture = key > todayISO();
-    const opacity = isFuture ? 'opacity-40' : '';
-
-    return `
-      <div class="flex flex-col items-center gap-2 ${opacity}">
-        <span class="text-xs text-slate-500">${dayShort(i)}</span>
-        <div class="w-8 h-8 rounded-lg ${bg} flex items-center justify-center text-xs font-bold text-white week-cell">
-          ${isFuture ? '-' : label}
-        </div>
-      </div>
-    `;
-  }).join('');
+    const done = habits.filter(h => isDone(h, d)).length
+    const pct = habits.length ? Math.round((done / habits.length) * 100) : 0
+    const isFuture = d > today
+    let cls = 'w-no'
+    let label = '-'
+    if (pct > 80) { cls = 'w-ok'; label = `${pct}%` }
+    else if (pct > 60) { cls = 'w-hi'; label = `${pct}%` }
+    else if (pct > 40) { cls = 'w-md'; label = `${pct}%` }
+    else if (pct > 20) { cls = 'w-lo'; label = `${pct}%` }
+    else if (pct > 0) { cls = 'w-mi'; label = `${pct}%` }
+    return `<div class="week-day ${isFuture ? 'op-40' : ''}"><span>${dayShort(i)}</span><div class="week-cell ${cls}">${isFuture ? '-' : label}</div></div>`
+  }).join('')
 }
 
-/* ───── Habits ───── */
-function renderHabits() {
-  const container = document.getElementById('habitList');
-  if (!container) return;
+function renderHabitList(habits) {
+  const container = $('#habitList')
+  if (!container) return
+  const today = todayISO()
 
   if (!habits.length) {
-    container.innerHTML = `
-      <div class="text-center py-12 text-slate-500">
-        <p class="text-lg mb-2">No habits yet</p>
-        <p class="text-sm">Tap + to add your first habit</p>
-      </div>
-    `;
-    return;
+    container.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.85rem"><div style="font-size:2rem;margin-bottom:8px;opacity:.4">+</div>Tap + to add your first habit</div>`
+    return
   }
 
-  const todayStr = todayISO();
-  container.innerHTML = habits.map(h => {
-    const isCompleted = h.history?.[todayStr] || false;
-    const streak = calcStreak(h.history || {});
-    const iconSvg = SVG_ICONS[h.icon] || SVG_ICONS.run;
+  container.innerHTML = habits.map((h, idx) => {
+    const done = isDone(h, today)
+    const streak = calcStreak(h.history || {}, h)
+    const icon = SVG_ICONS[h.icon] || SVG_ICONS.run
+    const val = h.history?.[today] || 0
+    const isMeasurable = h.habitType === 'count' || h.habitType === 'duration'
+    const pct = isMeasurable && h.target ? Math.round(Math.min(val / h.target, 1) * 100) : (done ? 100 : 0)
 
-    return `
-      <div class="habit-item bg-card p-4 rounded-2xl flex items-center justify-between border border-transparent hover:border-primary/30 transition ${isCompleted ? 'opacity-60' : ''}" data-id="${h.id}">
-        <div class="flex items-center gap-4">
-          <div class="w-10 h-10 rounded-xl bg-${h.color}-500/20 text-${h.color}-400 flex items-center justify-center">
-            ${iconSvg}
-          </div>
-          <div>
-            <h3 class="font-medium text-white ${isCompleted ? 'line-through' : ''}">${h.title}</h3>
-            <p class="text-xs text-slate-400">${h.category} &bull; ${streak} day streak</p>
-          </div>
-        </div>
-        <button class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition check-btn ${isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-slate-600 text-transparent hover:border-primary'}">
-          ${SVG_ICONS.check}
-        </button>
-      </div>
-    `;
-  }).join('');
+    const isSkipped = h.skips?.[today] || false
+
+    const actionBtns = `
+  <div class="habit-actions">
+    <button class="action-btn" data-act="skip" title="${isSkipped ? 'Remove skip' : 'Skip day'}">${isSkipped ? '&#10003;' : '&#9881;'}</button>
+    <button class="action-btn" data-act="archive" title="Archive"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg></button>
+    <button class="action-btn danger" data-act="delete" title="Delete"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg></button>
+  </div>`
+
+    let rightContent = ''
+    if (isMeasurable) {
+      const unit = h.unit || 'x'
+      rightContent = `
+<div class="habit-right">
+  ${actionBtns}
+  <div class="counter-wrap ${done ? 'done' : ''}">
+    <button class="counter-btn" data-act="dec">−</button>
+    <div class="counter-val">${val}<span class="counter-target">/${h.target}</span></div>
+    <button class="counter-btn" data-act="inc">+</button>
+  </div>
+  ${done ? `<div class="mini-check">${SVG_ICONS.check}</div>` : ''}
+  ${isSkipped ? `<span class="skip-badge">skipped</span>` : ''}
+</div>`
+    } else {
+      rightContent = `
+<div class="habit-right">
+  ${actionBtns}
+  <button class="check-btn ${done ? 'checked' : ''}">${SVG_ICONS.check}</button>
+  ${isSkipped ? `<span class="skip-badge">skipped</span>` : ''}
+</div>`
+    }
+
+    const note = h.notes?.[today] || ''
+    const hasNote = !!note
+
+    return `<div class="habit ${done ? 'done' : ''}" data-id="${h.id}" style="animation-delay:${idx*0.04}s">
+<div class="habit-main-row">
+<div class="habit-left">
+  <div class="habit-icon icon-${h.color || 'emerald'}">${icon}</div>
+  <div class="habit-info">
+    <div class="habit-title ${done ? 'done' : ''}">${h.title}</div>
+    <div class="habit-meta">${h.category} &middot; ${streak}d streak${isMeasurable ? ` &middot; ${pct}%` : ''}</div>
+  </div>
+</div>
+<div class="habit-right-wrap">
+  <button class="more-btn" data-act="toggle-actions" title="More">&#8942;</button>
+  <button class="note-btn ${hasNote ? 'has-note' : ''}" data-act="note" title="${hasNote ? 'Edit note' : 'Add note'}">${hasNote ? '!' : '&#9998;'}</button>
+${rightContent}
+</div>
+</div>
+<div class="habit-note-area" id="note-${h.id}">
+  <textarea class="note-input" rows="2" placeholder="Quick note...">${note}</textarea>
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <button class="btn-primary" style="padding:6px 12px;font-size:0.75rem" data-act="save-note">Save</button>
+    <button class="btn-secondary" style="padding:6px 12px;font-size:0.75rem" data-act="cancel-note">Cancel</button>
+  </div>
+</div>
+</div>`
+  }).join('')
 }
 
-/* ───── Events ───── */
-function setupEventListeners() {
-  document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.check-btn');
-    if (btn) {
-      const item = btn.closest('.habit-item');
-      if (!item) return;
-      const id = item.dataset.id;
-      const now = new Date().toISOString().split('T')[0];
-      const isNow = await Store.toggleHabit(id, now);
-      await render();
-      const streak = calcStreak(
-        Object.fromEntries(
-          habits.flatMap(h => Object.entries(h.history || {}))
-        )
-      );
-      await Store.updateBestStreak(streak);
+/* ══════════════════════════════════════════════════════════
+   STATS TAB
+   ══════════════════════════════════════════════════════════ */
+function renderStatsTab() {
+  const active = state.habits.filter(h => !h.archived)
+  const today = todayISO()
+  const doneToday = active.filter(h => isDone(h, today)).length
+  const totalActive = active.length
+  const allHistory = {}
+  active.forEach(h => Object.assign(allHistory, h.history || {}))
+  const overallRate = calcRate(allHistory)
+  const streaks = active.map(h => calcStreak(h.history || {}, h))
+  const currentBest = Math.max(...streaks, 0)
+
+  // Overview grid
+  const grid = $('#statsOverview')
+  if (grid) {
+    grid.innerHTML = `
+<div class="stats-card"><div class="num">${totalActive}</div><div class="lbl">Active Habits</div></div>
+<div class="stats-card"><div class="num green">${doneToday}</div><div class="lbl">Done Today</div></div>
+<div class="stats-card"><div class="num">${currentBest}</div><div class="lbl">Current Best Streak</div></div>
+<div class="stats-card"><div class="num muted">${state.meta.bestStreak || 0}</div><div class="lbl">All-time Best</div></div>
+<div class="stats-card full" style="padding:20px">
+  <div style="display:flex;align-items:baseline;justify-content:center;gap:8px">
+    <span class="num" style="font-size:2.4rem">${overallRate}%</span>
+    <span class="lbl">completion rate</span>
+  </div>
+  <div style="margin-top:12px;height:6px;background:var(--surface);border-radius:4px;overflow:hidden">
+    <div style="height:100%;width:${overallRate}%;background:var(--text);border-radius:4px;transition:width .5s"></div>
+  </div>
+</div>`
+  }
+
+  // Calendar heatmap (last 30 days)
+  renderCalendar(active, allHistory)
+
+  // Per habit breakdown
+  renderBreakdown(active)
+}
+
+function renderCalendar(habits, allHistory) {
+  const container = $('#calendarView')
+  if (!container) return
+  const today = todayISO()
+  const days = monthRange(today)
+  const headers = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="cal-head">${d}</div>`).join('')
+  const startDow = new Date(days[0] + 'T12:00:00').getDay()
+  const blanks = Array(startDow).fill('<div class="cal-day"></div>').join('')
+
+  const cells = days.map(d => {
+    const activeHabits = habits.filter(h => isDone(h, d)).length
+    const total = habits.length
+    const pct = total ? activeHabits / total : 0
+    let cls = ''
+    if (pct > 0.8) cls = 'filled'
+    else if (pct > 0.4) cls = 'mid'
+    else if (pct > 0) cls = 'low'
+    const isToday = d === today
+    return `<div class="cal-day ${cls} ${isToday ? 'today' : ''}">${d.split('-')[2]}</div>`
+  }).join('')
+
+  container.innerHTML = `<div class="cal-grid">${headers}${blanks}${cells}</div>`
+}
+
+function renderBreakdown(habits) {
+  const container = $('#habitBreakdown')
+  if (!container) return
+  if (!habits.length) { container.innerHTML = '<div class="about-text">No habits yet.</div>'; return }
+  const today = todayISO()
+
+  container.innerHTML = habits.map(h => {
+    const streak = calcStreak(h.history || {}, h)
+    const rate = calcRate(h.history || {}, 30, h)
+    const done = isDone(h, today)
+    const val = h.history?.[today] || 0
+    const isMeasurable = h.habitType === 'count' || h.habitType === 'duration'
+    const colorClass = `icon-${h.color || 'emerald'}`
+    const icon = SVG_ICONS[h.icon] || SVG_ICONS.run
+    let status = done ? 'Done today' : 'Not done'
+    if (isMeasurable) status = done ? `${val}/${h.target} ${h.unit || ''}` : 'Not done'
+    return `<div class="habit-micro">
+  <div class="habit-icon ${colorClass}">${icon}</div>
+  <div class="info">
+    <div class="name">${h.title}</div>
+    <div class="statline">${streak}d streak &middot; ${status}</div>
+  </div>
+  <div class="pct" style="color:${rate > 60 ? 'var(--success)' : 'var(--text-muted)'}">${rate}%</div>
+</div>`
+  }).join('')
+}
+
+/* ══════════════════════════════════════════════════════════
+   SETTINGS TAB
+   ══════════════════════════════════════════════════════════ */
+function renderSettingsTab() {
+  const archived = state.habits.filter(h => h.archived)
+  const container = $('#archivedList')
+  if (!container) return
+  if (!archived.length) { container.innerHTML = '<div class="about-text">None archived.</div>'; return }
+  container.innerHTML = archived.map(h => {
+    const icon = SVG_ICONS[h.icon] || SVG_ICONS.run
+    return `<div class="setting-card">
+  <div class="info" style="display:flex;align-items:center;gap:10px">
+    <div class="habit-icon icon-${h.color || 'emerald'}" style="width:32px;height:32px">${icon}</div>
+    <div><div class="title">${h.title}</div><div class="desc">${h.category} &middot; archived</div></div>
+  </div>
+  <button class="action-btn" data-act="unarchive" data-id="${h.id}">Restore</button>
+</div>`
+  }).join('')
+}
+
+/* ══════════════════════════════════════════════════════════
+   ADD HABIT MODAL
+   ══════════════════════════════════════════════════════════ */
+let selectedIcon = 'run'
+let selectedColor = 'emerald'
+
+function openModal() {
+  const modal = $('#addModal')
+  if (!modal) return
+
+  $('#habitTitle').value = ''
+  selectedIcon = 'run'
+  selectedColor = 'emerald'
+
+  // Populate category dropdown
+  const catSel = $('#habitCategory')
+  catSel.innerHTML = CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('')
+
+  // Icon picker
+  const ip = $('#iconPicker')
+  if (ip) {
+    ip.innerHTML = ICON_OPTIONS.map(o =>
+      `<button class="picker-btn ${o.id === selectedIcon ? 'active' : ''}" data-icon="${o.id}">${o.svg}</button>`
+    ).join('')
+  }
+
+  // Color picker
+  const cp = $('#colorPicker')
+  if (cp) {
+    cp.innerHTML = COLOR_OPTIONS.map(o =>
+      `<button class="color-swatch ${o.id} ${o.id === selectedColor ? 'active' : ''}" data-color="${o.id}" title="${o.label}"></button>`
+    ).join('')
+  }
+
+  // Type conditional fields
+  const targetGroup = $('#targetGroup')
+  const unitGroup = $('#unitGroup')
+  if (targetGroup) targetGroup.style.display = 'none'
+  if (unitGroup) unitGroup.style.display = 'none'
+  $('#habitType').value = 'boolean'
+
+  modal.classList.add('open')
+}
+
+function closeModal() {
+  $('#addModal').classList.remove('open')
+}
+
+async function saveNewHabit() {
+  const title = $('#habitTitle').value.trim()
+  if (!title) { toast('Please enter a habit title'); return }
+  const category = $('#habitCategory').value
+  const schedule = $('#habitSchedule').value
+  const habitType = $('#habitType').value
+  const target = habitType === 'boolean' ? null : parseInt($('#habitTarget').value) || null
+  const unit = habitType === 'boolean' ? null : ($('#habitUnit').value.trim() || null)
+  if (habitType !== 'boolean' && (!target || target < 1)) { toast('Please enter a valid target'); return }
+  await Store.addHabit({ title, category, icon: selectedIcon, color: selectedColor, schedule, habitType, target, unit })
+  await loadState()
+  renderHabitsTab()
+  renderStatsTab()
+  renderSettingsTab()
+  closeModal()
+  toast(`"${title}" created`)
+}
+
+/* ══════════════════════════════════════════════════════════
+   BIND UI EVENTS
+   ══════════════════════════════════════════════════════════ */
+function bindUI() {
+  // Tab switching
+  $$('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+  })
+
+  // FAB
+  $('#fab').addEventListener('click', openModal)
+
+  // Scroll-based FAB hide/show
+  let lastScroll = 0
+  document.addEventListener('scroll', () => {
+    const fab = $('#fab')
+    if (!fab || activeTab !== 'tabHabits') return
+    const cur = window.scrollY
+    if (cur > lastScroll && cur > 20) fab.classList.add('hidden')
+    else fab.classList.remove('hidden')
+    lastScroll = cur
+  }, { passive: true })
+
+  // Modal close
+  $('#modalClose').addEventListener('click', closeModal)
+  $('#addModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeModal() })
+  $('#saveHabit').addEventListener('click', saveNewHabit)
+  $('#habitTitle').addEventListener('keydown', e => { if (e.key === 'Enter') saveNewHabit() })
+
+  // Icon picker (delegated)
+  $('#iconPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.picker-btn')
+    if (!btn) return
+    selectedIcon = btn.dataset.icon
+    $$('.picker-btn', $('#iconPicker')).forEach(b => b.classList.toggle('active', b.dataset.icon === selectedIcon))
+  })
+
+  // Color picker (delegated)
+  $('#colorPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.color-swatch')
+    if (!btn) return
+    selectedColor = btn.dataset.color
+    $$('.color-swatch', $('#colorPicker')).forEach(b => b.classList.toggle('active', b.dataset.color === selectedColor))
+  })
+
+  // Habit type change → show/hide target/unit
+  $('#habitType').addEventListener('change', () => {
+    const type = $('#habitType').value
+    const targetGroup = $('#targetGroup')
+    const unitGroup = $('#unitGroup')
+    if (targetGroup) targetGroup.style.display = type === 'boolean' ? 'none' : ''
+    if (unitGroup) unitGroup.style.display = type === 'boolean' ? 'none' : ''
+    if (type === 'duration') $('#habitUnit').value = 'min'
+    else if (type === 'count') $('#habitUnit').value = ''
+  })
+
+  function updateBestStreak() {
+    const streaks = state.habits.filter(h => !h.archived).map(h => calcStreak(h.history || {}, h))
+    const best = Math.max(...streaks, 0)
+    Store.updateBestStreak(best)
+    state.meta.bestStreak = best
+  }
+
+  async function syncXP() {
+    const xp = calcTotalXP(state.habits)
+    await Store.updateXP(xp)
+    state.meta.xp = xp
+    return xp
+  }
+
+  async function trackMilestone(prevXP) {
+    const badges = calcBadges(state.habits, state.meta)
+    const prevBadgeCount = state._badgeCount || 0
+    if (badges.length > prevBadgeCount && prevBadgeCount > 0) {
+      confetti()
+      toast(`New badge earned!`)
     }
-  });
+    state._badgeCount = badges.length
+  }
+
+  // Habit list delegated: check, archive, delete, inc, dec
+  $('#habitList').addEventListener('click', async e => {
+    const item = e.target.closest('.habit')
+    if (!item) return
+    const id = item.dataset.id
+    const habit = state.habits.find(h => h.id === id)
+    if (!habit) return
+    const today = todayISO()
+
+    // Check button (boolean only)
+    if (e.target.closest('.check-btn')) {
+      const prevXP = calcTotalXP(state.habits)
+      await Store.toggleHabit(id, today)
+      await loadState()
+      renderHabitsTab()
+      renderStatsTab()
+      updateBestStreak()
+      await syncXP()
+      trackMilestone(prevXP)
+    }
+
+    // Counter increment
+    if (e.target.closest('[data-act="inc"]')) {
+      const current = habit.history?.[today] || 0
+      const step = habit.habitType === 'duration' ? 5 : 1
+      await Store.setHabitValue(id, today, current + step)
+      await loadState()
+      renderHabitsTab()
+      renderStatsTab()
+      updateBestStreak()
+      await syncXP()
+    }
+
+    // Counter decrement
+    if (e.target.closest('[data-act="dec"]')) {
+      const current = habit.history?.[today] || 0
+      const step = habit.habitType === 'duration' ? 5 : 1
+      await Store.setHabitValue(id, today, Math.max(0, current - step))
+      await loadState()
+      renderHabitsTab()
+      renderStatsTab()
+      updateBestStreak()
+      await syncXP()
+    }
+
+    // Toggle actions menu
+    if (e.target.closest('[data-act="toggle-actions"]')) {
+      const actions = item.querySelector('.habit-actions')
+      if (actions) {
+        const nowOpen = actions.classList.toggle('open')
+        if (nowOpen) {
+          const close = e => {
+            if (!e.target.closest(`[data-id="${id}"]`)) {
+              actions.classList.remove('open')
+              document.removeEventListener('click', close)
+            }
+          }
+          setTimeout(() => document.addEventListener('click', close), 0)
+        }
+      }
+    }
+
+    // Skip day
+    if (e.target.closest('[data-act="skip"]')) {
+      await Store.skipHabit(id, today)
+      await loadState()
+      renderHabitsTab()
+      renderStatsTab()
+      updateBestStreak()
+    }
+
+    // Note toggle
+    if (e.target.closest('[data-act="note"]')) {
+      const area = document.getElementById(`note-${id}`)
+      if (area) area.classList.toggle('open')
+    }
+
+    // Save note
+    if (e.target.closest('[data-act="save-note"]')) {
+      const area = document.getElementById(`note-${id}`)
+      const textarea = area?.querySelector('.note-input')
+      if (textarea) {
+        await Store.setHabitNote(id, today, textarea.value.trim())
+        await loadState()
+        renderHabitsTab()
+        toast('Note saved')
+      }
+    }
+
+    // Cancel note
+    if (e.target.closest('[data-act="cancel-note"]')) {
+      const area = document.getElementById(`note-${id}`)
+      if (area) area.classList.remove('open')
+    }
+
+    // Delete
+    if (e.target.closest('[data-act="delete"]')) {
+      const ok = await customConfirm('Delete habit', 'Delete this habit permanently?', true)
+      if (!ok) return
+      await Store.removeHabit(id)
+      await loadState()
+      renderHabitsTab()
+      renderStatsTab()
+      renderSettingsTab()
+    }
+  })
+
+  // Settings: export
+  $('#exportBtn').addEventListener('click', async () => {
+    const json = await Store.exportData()
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `habits-${todayISO()}.json`
+    a.click(); URL.revokeObjectURL(url)
+    toast('Data exported')
+  })
+
+  // Settings: import
+  $('#importBtn').addEventListener('click', () => $('#importFile').click())
+  $('#importFile').addEventListener('change', async e => {
+    const file = e.target.files[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      await Store.importData(text)
+      await loadState()
+      renderHabitsTab(); renderStatsTab(); renderSettingsTab()
+      toast('Data imported')
+    } catch { toast('Invalid file', true) }
+    e.target.value = ''
+  })
+
+  // Settings: reset
+  $('#resetBtn').addEventListener('click', async () => {
+    const ok = await customConfirm('Reset all data', 'Delete ALL habits and history? This cannot be undone.', true)
+    if (!ok) return
+    await Store.clearAll()
+    await loadState()
+    renderHabitsTab(); renderStatsTab(); renderSettingsTab()
+    toast('All data cleared')
+  })
+
+  // Settings: unarchive
+  $('#archivedList').addEventListener('click', async e => {
+    const btn = e.target.closest('[data-act="unarchive"]')
+    if (!btn) return
+    await Store.archiveHabit(btn.dataset.id)
+    await loadState()
+    renderHabitsTab()
+    renderSettingsTab()
+    toast('Habit restored')
+  })
+}
+
+/* ───── Custom Confirm Modal ───── */
+function buildConfirmModal() {
+  if ($('#_confirmOverlay')) return
+  const div = document.createElement('div')
+  div.id = '_confirmOverlay'
+  div.className = 'confirm-overlay'
+  div.innerHTML = `<div class="confirm-box">
+    <div class="confirm-title" id="_confirmTitle"></div>
+    <div class="confirm-msg" id="_confirmMsg"></div>
+    <div class="confirm-actions">
+      <button class="btn btn-cancel" id="_confirmCancel">Cancel</button>
+      <button class="btn btn-danger" id="_confirmOk">Delete</button>
+    </div>
+  </div>`
+  document.body.appendChild(div)
+
+  div.addEventListener('click', e => {
+    if (e.target === div) resolveConfirm(false)
+  })
+  $('#_confirmCancel').addEventListener('click', () => resolveConfirm(false))
+}
+
+let _confirmResolve = null
+
+function resolveConfirm(val) {
+  if (_confirmResolve) _confirmResolve(val)
+  _confirmResolve = null
+  $('#_confirmOverlay').classList.remove('open')
+}
+
+function customConfirm(title, msg, destructive = false) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve
+    const overlay = $('#_confirmOverlay')
+    $('#_confirmTitle').textContent = title
+    $('#_confirmMsg').textContent = msg
+    const okBtn = $('#_confirmOk')
+    okBtn.textContent = destructive ? 'Delete' : 'Confirm'
+    okBtn.className = destructive ? 'btn btn-danger' : 'btn btn-primary'
+    overlay.classList.add('open')
+    okBtn.onclick = () => resolveConfirm(true)
+  })
+}
+
+/* ───── Toast ───── */
+function toast(msg, isError = false) {
+  const existing = document.querySelector('.toast')
+  if (existing) existing.remove()
+  const el = document.createElement('div')
+  el.className = 'toast'
+  el.textContent = msg
+  if (isError) el.style.borderColor = 'var(--danger)'
+  document.body.appendChild(el)
+  setTimeout(() => el.remove(), 2200)
 }
