@@ -229,73 +229,43 @@ function renderStatsTab() {
 <div class="stats-card"><div class="num green">${doneToday}</div><div class="lbl">Done Today</div></div>
 <div class="stats-card"><div class="num">${currentBest}</div><div class="lbl">Current Best Streak</div></div>
 <div class="stats-card"><div class="num muted">${state.meta.bestStreak || 0}</div><div class="lbl">All-time Best</div></div>
-<div class="stats-card full" style="padding:20px">
-  <div style="display:flex;align-items:baseline;justify-content:center;gap:8px">
-    <span class="num" style="font-size:2.4rem">${overallRate}%</span>
+<div class="stats-card full">
+  <div style="display:flex;align-items:baseline;justify-content:center;gap:4px">
+    <span class="num" style="font-size:1.6rem">${overallRate}%</span>
     <span class="lbl">completion rate</span>
   </div>
-  <div style="margin-top:12px;height:6px;background:var(--surface);border-radius:4px;overflow:hidden">
+  <div style="margin-top:6px;height:4px;background:var(--surface);border-radius:4px;overflow:hidden">
     <div style="height:100%;width:${overallRate}%;background:var(--text);border-radius:4px;transition:width .5s"></div>
   </div>
 </div>`
   }
 
-  // Calendar heatmap (last 30 days)
-  renderCalendar(active, allHistory)
-
-  // Per habit breakdown
-  renderBreakdown(active)
+  renderCalendar(active)
 }
 
-function renderCalendar(habits, allHistory) {
+const COLOR_HEX = {
+  emerald:'#34d399', amber:'#fbbf24', rose:'#f43f5e', sky:'#38bdf8',
+  violet:'#a78bfa', lime:'#a3e635', neutral:'#a3a3a3', white:'#fff'
+}
+
+function renderCalendar(habits) {
   const container = $('#calendarView')
   if (!container) return
   const today = todayISO()
   const days = monthRange(today)
-  const headers = ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => `<div class="cal-head">${d}</div>`).join('')
+  const headers = ['S','M','T','W','T','F','S'].map(d => `<div class="cal-head">${d}</div>`).join('')
   const startDow = new Date(days[0] + 'T12:00:00').getDay()
   const blanks = Array(startDow).fill('<div class="cal-day"></div>').join('')
 
   const cells = days.map(d => {
-    const activeHabits = habits.filter(h => isDone(h, d)).length
-    const total = habits.length
-    const pct = total ? activeHabits / total : 0
-    let cls = ''
-    if (pct > 0.8) cls = 'filled'
-    else if (pct > 0.4) cls = 'mid'
-    else if (pct > 0) cls = 'low'
+    const dots = habits.filter(h => isDone(h, d)).map(h =>
+      `<span class="cal-dot" style="background:${COLOR_HEX[h.color] || '#34d399'}"></span>`
+    ).join('')
     const isToday = d === today
-    return `<div class="cal-day ${cls} ${isToday ? 'today' : ''}">${d.split('-')[2]}</div>`
+    return `<div class="cal-day ${isToday ? 'today' : ''}">${d.split('-')[2]}${dots ? `<div class="cal-dots">${dots}</div>` : ''}</div>`
   }).join('')
 
   container.innerHTML = `<div class="cal-grid">${headers}${blanks}${cells}</div>`
-}
-
-function renderBreakdown(habits) {
-  const container = $('#habitBreakdown')
-  if (!container) return
-  if (!habits.length) { container.innerHTML = '<div class="about-text">No habits yet.</div>'; return }
-  const today = todayISO()
-
-  container.innerHTML = habits.map(h => {
-    const streak = calcStreak(h.history || {}, h)
-    const rate = calcRate(h.history || {}, 30, h)
-    const done = isDone(h, today)
-    const val = h.history?.[today] || 0
-    const isMeasurable = h.habitType === 'count' || h.habitType === 'duration'
-    const colorClass = `icon-${h.color || 'emerald'}`
-    const icon = SVG_ICONS[h.icon] || SVG_ICONS.run
-    let status = done ? 'Done today' : 'Not done'
-    if (isMeasurable) status = done ? `${val}/${h.target} ${h.unit || ''}` : 'Not done'
-    return `<div class="habit-micro">
-  <div class="habit-icon ${colorClass}">${icon}</div>
-  <div class="info">
-    <div class="name">${h.title}</div>
-    <div class="statline">${streak}d streak &middot; ${status}</div>
-  </div>
-  <div class="pct" style="color:${rate > 60 ? 'var(--success)' : 'var(--text-muted)'}">${rate}%</div>
-</div>`
-  }).join('')
 }
 
 /* ══════════════════════════════════════════════════════════

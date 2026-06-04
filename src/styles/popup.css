@@ -51,7 +51,8 @@ body{
 /* ───── Tabs ───── */
 .tab-content{display:none;animation:fadeIn .25s ease;flex:1;overflow:hidden}
 .tab-content.active{display:flex;flex-direction:column}
-#tabStats.active, #tabSettings.active{display:block;overflow-y:auto;padding-bottom:80px}
+#tabStats.active{display:flex;flex-direction:column;overflow:hidden}
+#tabSettings.active{display:block;overflow-y:auto;padding-bottom:80px}
 .tab-scroll{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:120px}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
@@ -229,36 +230,28 @@ body{
 .btn-secondary:hover{background:var(--surface)}
 
 /* ───── Stats Tab ───── */
-.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
 .stats-card{
-  background:var(--card);padding:16px;border-radius:var(--radius-sm);border:1px solid var(--border);
+  background:var(--card);padding:10px 8px;border-radius:var(--radius-sm);border:1px solid var(--border);
   text-align:center
 }
 .stats-card.full{grid-column:1/-1}
-.stats-card .num{font-size:1.6rem;font-weight:700;color:var(--text);line-height:1.2}
+.stats-card .num{font-size:1.2rem;font-weight:700;color:var(--text);line-height:1.2}
 .stats-card .num.green{color:var(--success)}
 .stats-card .num.muted{color:var(--text-muted)}
-.stats-card .lbl{font-size:0.7rem;color:var(--text-muted);margin-top:2px}
-.stats-card .sub{font-size:0.75rem;color:var(--text-secondary);margin-top:6px}
+.stats-card .lbl{font-size:0.6rem;color:var(--text-muted);margin-top:2px}
+.stats-card .sub{font-size:0.7rem;color:var(--text-secondary);margin-top:4px}
 
 /* Calendar heatmap */
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+#tabStats .section{margin-bottom:8px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cal-head{text-align:center;font-size:0.6rem;color:var(--text-muted);padding:2px 0;text-transform:uppercase;letter-spacing:0.04em}
-.cal-day{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted)}
-.cal-day.filled{background:var(--text);color:#000;font-weight:600}
-.cal-day.mid{background:rgba(255,255,255,0.35)}
-.cal-day.low{background:rgba(255,255,255,0.12)}
+.cal-day{height:34px;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:0.6rem;color:var(--text-muted);gap:2px}
 .cal-day.today{border:1px solid var(--text-muted)}
+.cal-dots{display:flex;flex-wrap:wrap;gap:2px;justify-content:center}
+.cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
 
-/* Per-habit micro stats in stats tab */
-.habit-micro{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card);
-  border-radius:var(--radius-xs);border:1px solid var(--border);margin-bottom:6px
-}
-.habit-micro .info{flex:1;min-width:0}
-.habit-micro .info .name{font-size:0.8rem;font-weight:500;color:var(--text)}
-.habit-micro .info .statline{font-size:0.65rem;color:var(--text-muted);margin-top:1px}
-.habit-micro .pct{font-size:0.85rem;font-weight:600;flex-shrink:0}
+
 
 /* ───── Settings Tab ───── */
 .settings-group{margin-bottom:24px}
