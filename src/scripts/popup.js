@@ -52,6 +52,9 @@ function switchTab(id) {
   if (id === 'tabStats') renderStatsTab()
   if (id === 'tabSettings') renderSettingsTab()
 
+  const scrollEl = document.querySelector(`#${id} .tab-scroll`) || document.getElementById(id)
+  if (scrollEl) scrollEl.scrollTop = 0
+
   const fab = $('#fab')
   if (fab) fab.classList.toggle('hidden', id !== 'tabHabits')
 }
@@ -158,7 +161,9 @@ function renderHabitList(habits) {
   ${actionBtns}
   <div class="counter-wrap ${done ? 'done' : ''}">
     <button class="counter-btn" data-act="dec">−</button>
-    <div class="counter-val">${val}<span class="counter-target">/${h.target}</span></div>
+    <div class="counter-val">${val}</div>
+    <span class="counter-slash">/</span>
+    <span class="counter-target">${h.target}</span>
     <button class="counter-btn" data-act="inc">+</button>
   </div>
   ${done ? `<div class="mini-check">${SVG_ICONS.check}</div>` : ''}
