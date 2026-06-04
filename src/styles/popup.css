@@ -1,0 +1,99 @@
+/* ───── Tailwind CDN is loaded in popup.html ───── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* smooth scroll within popup */
+html {
+  scroll-behavior: smooth;
+}
+
+/* custom scrollbar for popup content */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+/* check button pulse animation */
+.check-btn:active {
+  transform: scale(0.92);
+}
+.check-btn {
+  transition: all 0.2s ease;
+}
+
+/* habit item slide-in */
+.habit-item {
+  animation: slideUp 0.3s ease both;
+}
+.habit-item:nth-child(2) { animation-delay: 0.05s; }
+.habit-item:nth-child(3) { animation-delay: 0.1s; }
+.habit-item:nth-child(4) { animation-delay: 0.15s; }
+.habit-item:nth-child(5) { animation-delay: 0.2s; }
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* FAB hover lift */
+.fab {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.5);
+}
+.fab:active {
+  transform: scale(0.95);
+}
+
+/* bottom nav active indicator */
+.nav-btn.active .nav-icon {
+  color: #6366f1;
+}
+.nav-btn.active .nav-label {
+  color: #6366f1;
+}
+
+/* stat card hover */
+.stat-card {
+  transition: all 0.2s ease;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+/* week day cell */
+.week-cell {
+  transition: all 0.15s ease;
+}
+.week-cell:hover {
+  filter: brightness(1.2);
+}
+
+/* modal overlay */
+.modal-overlay {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(4px);
+}
