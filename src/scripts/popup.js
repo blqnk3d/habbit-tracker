@@ -15,6 +15,9 @@ const $$ = (s, p = document) => [...p.querySelectorAll(s)]
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js')
 }
+if (screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock('portrait').catch(() => {})
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
   await loadState()

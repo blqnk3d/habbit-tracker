@@ -147,7 +147,7 @@ body{
 
 /* ───── FAB ───── */
 .fab{
-  position:fixed;bottom:96px;left:50%;transform:translateX(-50%);
+  position:fixed;bottom:calc(96px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);
   width:52px;height:52px;border-radius:50%;background:#fff;border:none;color:#000;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 24px rgba(255,255,255,0.08);transition:all .25s ease;z-index:10
@@ -160,7 +160,8 @@ body{
 .nav{
   position:fixed;bottom:0;width:100%;max-width:440px;
   background:rgba(0,0,0,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:10px 0 12px;z-index:20
+  border-top:1px solid var(--border);display:flex;justify-content:space-around;
+  padding:10px 0 calc(12px + env(safe-area-inset-bottom, 0px));z-index:20
 }
 .nav-btn{
   display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;
@@ -383,3 +384,31 @@ body{
 
 /* ───── Opacity helper ───── */
 .op-40{opacity:.4}
+
+/* ───── Orientation lock overlay ───── */
+.rotate-overlay{
+  position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;padding:40px;text-align:center
+}
+.rotate-overlay svg{width:48px;height:48px;color:var(--text-muted)}
+.rotate-overlay p{color:var(--text-muted);font-size:1rem}
+@media (orientation:landscape){.app{display:none}}
+@media (orientation:landscape){.rotate-overlay{display:flex}}
+.rotate-overlay{display:none}
+@media (orientation:portrait){.rotate-overlay{display:none}}
+
+/* ───── Narrow phone tweaks ───── */
+@media (max-width:380px){
+  .habit{padding:10px 12px}
+  .habit-left{gap:8px}
+  .habit-icon{width:32px;height:32px}
+  .habit-icon svg{width:15px;height:15px}
+  .habit-title{font-size:0.8rem}
+  .counter-btn{width:20px;height:20px;font-size:0.7rem}
+  .counter-val{font-size:0.65rem}
+  .counter-slash,.counter-target{font-size:0.65rem}
+  .counter-wrap{gap:2px;padding:1px 2px}
+  .stats-card{padding:6px}
+  .stats-card .num{font-size:1rem}
+  .stats-card .lbl{font-size:0.55rem}
+}

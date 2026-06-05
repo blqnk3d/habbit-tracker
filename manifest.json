@@ -6,7 +6,7 @@
   "description": "A dark, modern habit tracker to build better routines",
   "start_url": "/habbit-tracker/",
   "scope": "/habbit-tracker/",
-  "display": "standalone",
+  "display": "fullscreen",
   "background_color": "#121212",
   "theme_color": "#121212",
   "action": {
