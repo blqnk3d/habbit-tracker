@@ -13,7 +13,7 @@ const $$ = (s, p = document) => [...p.querySelectorAll(s)]
 
 /* ───── Init ───── */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('src/scripts/sw.js')
+  navigator.serviceWorker.register('src/scripts/sw.js', { scope: '/habbit-tracker/' })
 }
 
 document.addEventListener('DOMContentLoaded', async () => {

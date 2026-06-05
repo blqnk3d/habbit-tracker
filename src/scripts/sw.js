@@ -1,18 +1,18 @@
 const CACHE = 'habits-v1'
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/src/styles/popup.css',
-  '/src/scripts/popup.js',
-  '/src/scripts/storage.js',
-  '/src/scripts/helpers.js',
-  '/src/scripts/background.js',
-  '/pwa-manifest.json',
-  '/icons/icon16.png',
-  '/icons/icon48.png',
-  '/icons/icon128.png',
-  '/icons/icon192.png',
-  '/icons/icon512.png',
+  '/habbit-tracker/',
+  '/habbit-tracker/index.html',
+  '/habbit-tracker/src/styles/popup.css',
+  '/habbit-tracker/src/scripts/popup.js',
+  '/habbit-tracker/src/scripts/storage.js',
+  '/habbit-tracker/src/scripts/helpers.js',
+  '/habbit-tracker/src/scripts/background.js',
+  '/habbit-tracker/pwa-manifest.json',
+  '/habbit-tracker/icons/icon16.png',
+  '/habbit-tracker/icons/icon48.png',
+  '/habbit-tracker/icons/icon128.png',
+  '/habbit-tracker/icons/icon192.png',
+  '/habbit-tracker/icons/icon512.png',
 ]
 
 self.addEventListener('install', e => {
