@@ -12,6 +12,10 @@ const $ = (s, p = document) => p.querySelector(s)
 const $$ = (s, p = document) => [...p.querySelectorAll(s)]
 
 /* ───── Init ───── */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('src/scripts/sw.js')
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   await loadState()
   renderDate()
