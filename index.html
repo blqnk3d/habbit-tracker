@@ -192,16 +192,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .stat-card.accent .stat-val{color:var(--accent2)}
 .stat-card.green .stat-val{color:var(--green)}
 .stat-card.amber .stat-val{color:var(--amber)}
-.week-heatmap{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px}
-.week-heatmap h3{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-.heatmap-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.heatmap-label{font-size:12px;color:var(--text3);width:28px;flex-shrink:0}
-.heatmap-days{display:flex;gap:4px;flex:1}
-.heatmap-cell{flex:1;aspect-ratio:1;border-radius:4px;background:var(--bg3)}
-.heatmap-cell.p25{background:rgba(79,70,229,.25)}
-.heatmap-cell.p50{background:rgba(79,70,229,.5)}
-.heatmap-cell.p75{background:rgba(99,102,241,.75)}
-.heatmap-cell.p100{background:var(--accent2)}
+.week-chart{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px}
+.week-chart h3{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.week-bars{display:flex;align-items:flex-end;gap:6px;height:120px}
+.week-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%;gap:4px}
+.week-bar-col.today .week-bar-label{color:var(--accent2);font-weight:700}
+.week-bar-pct{font-size:10px;color:var(--text3);font-weight:600;min-height:14px}
+.week-bar-track{flex:1;width:100%;background:var(--bg3);border-radius:4px;position:relative;overflow:hidden;display:flex;align-items:flex-end}
+.week-bar-fill{width:100%;border-radius:4px;transition:height .5s cubic-bezier(.4,0,.2,1);min-height:0}
+.week-bar-label{font-size:11px;color:var(--text3);font-weight:600}
 .habit-stats-list{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:10px}
 .habit-stats-list h3{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
 .habit-stat-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -1409,21 +1408,27 @@ function renderStats(){
     <div class="stat-card"><div class="stat-val">${totalHabits}</div><div class="stat-lbl">Habits gesamt</div></div>
   </div>`;
   
-  // Heatmap
-  html+=`<div class="week-heatmap"><h3>Wochenübersicht</h3>`;
+  // Weekly bar chart
+  html+=`<div class="week-chart"><h3>Wochenübersicht</h3><div class="week-bars">`;
   for(let i=0;i<7;i++){
     const off=i-today;
     const ds=dateStr_(off);
     const dayHabits=d.habits.filter(h=>h.days.includes(i));
     const pct=dayHabits.length>0?Math.round(d.habits.filter(h=>h.days.includes(i)&&isCompleted(h,ds,d)).length/dayHabits.length*100):0;
-    const cls=pct>=100?'p100':pct>=75?'p75':pct>=50?'p50':pct>=25?'p25':'';
-    html+=`<div class="heatmap-row">
-      <div class="heatmap-label">${DAYS_SHORT[i]}</div>
-      <div class="heatmap-days"><div class="heatmap-cell ${cls}" title="${pct}%"></div></div>
-      <div style="font-size:12px;color:var(--text3);width:32px;text-align:right">${dayHabits.length>0?pct+'%':'–'}</div>
+    const isTodayCol=i===today;
+    let barColor='var(--bg3)';
+    if(pct>0&&pct<25) barColor='var(--accent)';
+    else if(pct>=25&&pct<50) barColor='var(--accent2)';
+    else if(pct>=50&&pct<75) barColor='#818CF8';
+    else if(pct>=75&&pct<100) barColor='var(--green)';
+    else if(pct>=100) barColor='var(--green2)';
+    html+=`<div class="week-bar-col${isTodayCol?' today':''}">
+      <div class="week-bar-pct">${dayHabits.length>0?pct+'%':''}</div>
+      <div class="week-bar-track"><div class="week-bar-fill" style="height:${pct}%;background:${barColor}"></div></div>
+      <div class="week-bar-label">${DAYS_SHORT[i]}</div>
     </div>`;
   }
-  html+='</div>';
+  html+='</div></div>';
   
   // Per-habit stats (single day view with arrows)
   const statsDay = today + statsDayOffset;
