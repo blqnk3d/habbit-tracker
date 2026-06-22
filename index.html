@@ -497,6 +497,17 @@ html:fullscreen body{overflow:hidden}
   </div>
 </div>
 
+<!-- Confirm Modal -->
+<div class="modal-overlay" id="confirm-modal" onclick="confirmAnswer(false)">
+  <div class="modal" style="max-height:auto;padding:24px 20px calc(24px + var(--safe-bottom))">
+    <div class="modal-handle"></div>
+    <h2 id="confirm-title" style="font-size:18px;margin-bottom:8px"></h2>
+    <p id="confirm-msg" style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.5"></p>
+    <button class="btn-primary" onclick="confirmAnswer(true)" id="confirm-ok">OK</button>
+    <button class="btn-secondary" onclick="confirmAnswer(false)">Abbrechen</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Context Menu -->
@@ -1168,16 +1179,18 @@ function contextDelete(){
   const d = getData();
   const h = d.habits.find(h=>h.id===contextHabitId);
   if(!h) return;
-  if(!confirm(`"${h.name}" wirklich löschen?`)) return;
-  d.habits = d.habits.filter(h=>h.id!==contextHabitId);
-  Object.keys(d.completions).forEach(ds=>{delete d.completions[ds][contextHabitId]});
-  Object.keys(d.sets).forEach(k=>{if(k.includes(contextHabitId))delete d.sets[k]});
-  Object.keys(d.qty).forEach(k=>{if(k.includes(contextHabitId))delete d.qty[k]});
-  Object.keys(d.water).forEach(k=>{if(k.includes(contextHabitId))delete d.water[k]});
-  saveData(d);
-  buildDayTabs();
-  renderHome();
-  showToast('Habit gelöscht');
+  confirmDialog('Habit löschen','"'+h.name+'" wirklich löschen?').then(ok=>{
+    if(!ok) return;
+    d.habits = d.habits.filter(h=>h.id!==contextHabitId);
+    Object.keys(d.completions).forEach(ds=>{delete d.completions[ds][contextHabitId]});
+    Object.keys(d.sets).forEach(k=>{if(k.includes(contextHabitId))delete d.sets[k]});
+    Object.keys(d.qty).forEach(k=>{if(k.includes(contextHabitId))delete d.qty[k]});
+    Object.keys(d.water).forEach(k=>{if(k.includes(contextHabitId))delete d.water[k]});
+    saveData(d);
+    buildDayTabs();
+    renderHome();
+    showToast('Habit gelöscht');
+  });
 }
 
 // ─── MODAL ────────────────────────────────────────────────────────────────────
@@ -1341,19 +1354,20 @@ function saveHabit(){
 
 function deleteHabit(){
   if(!editingId) return;
-  if(!confirm('Diesen Habit wirklich löschen? Alle Daten werden gelöscht.')) return;
-  const d=getData();
-  d.habits=d.habits.filter(h=>h.id!==editingId);
-  // Clean up completions
-  Object.keys(d.completions).forEach(ds=>{delete d.completions[ds][editingId]});
-  Object.keys(d.sets).forEach(k=>{if(k.includes(editingId))delete d.sets[k]});
-  Object.keys(d.qty).forEach(k=>{if(k.includes(editingId))delete d.qty[k]});
-  Object.keys(d.water).forEach(k=>{if(k.includes(editingId))delete d.water[k]});
-  saveData(d);
-  closeModal();
-  buildDayTabs();
-  renderHome();
-  showToast('Habit gelöscht');
+  confirmDialog('Habit löschen','Diesen Habit wirklich löschen? Alle Daten werden gelöscht.').then(ok=>{
+    if(!ok) return;
+    const d=getData();
+    d.habits=d.habits.filter(h=>h.id!==editingId);
+    Object.keys(d.completions).forEach(ds=>{delete d.completions[ds][editingId]});
+    Object.keys(d.sets).forEach(k=>{if(k.includes(editingId))delete d.sets[k]});
+    Object.keys(d.qty).forEach(k=>{if(k.includes(editingId))delete d.qty[k]});
+    Object.keys(d.water).forEach(k=>{if(k.includes(editingId))delete d.water[k]});
+    saveData(d);
+    closeModal();
+    buildDayTabs();
+    renderHome();
+    showToast('Habit gelöscht');
+  });
 }
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
@@ -1596,11 +1610,12 @@ function importData(){
       try{
         const imported=JSON.parse(ev.target.result);
         if(!imported.habits)throw new Error('Ungültig');
-        if(confirm('Aktuelle Daten werden ersetzt. Fortfahren?')){
+        confirmDialog('Daten importieren','Aktuelle Daten werden ersetzt. Fortfahren?').then(ok=>{
+          if(!ok) return;
           localStorage.setItem('habbit_data',JSON.stringify(imported));
           buildDayTabs();renderHome();renderSettings();
-          showToast('Import erfolgreich ✓','success');
-        }
+          showToast('Import erfolgreich','success');
+        });
       }catch{showToast('Ungültige Datei','error');}
     };
     reader.readAsText(file);
@@ -1609,11 +1624,27 @@ function importData(){
 }
 
 function resetAll(){
-  if(confirm('Wirklich ALLE Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.')){
+  confirmDialog('Alle Daten löschen','Wirklich ALLE Daten löschen? Diese Aktion kann nicht rückgängig gemacht werden.').then(ok=>{
+    if(!ok) return;
     localStorage.removeItem('habbit_data');
     buildDayTabs();renderHome();renderSettings();
     showToast('Alle Daten gelöscht');
-  }
+  });
+}
+
+// ─── CONFIRM DIALOG ──────────────────────────────────────────────────────────
+let _confirmCb=null;
+function confirmDialog(title, msg){
+  return new Promise(resolve=>{
+    _confirmCb=resolve;
+    document.getElementById('confirm-title').textContent=title;
+    document.getElementById('confirm-msg').textContent=msg;
+    document.getElementById('confirm-modal').classList.add('open');
+  });
+}
+function confirmAnswer(val){
+  document.getElementById('confirm-modal').classList.remove('open');
+  if(_confirmCb){_confirmCb(val);_confirmCb=null;}
 }
 
 // ─── TOAST ────────────────────────────────────────────────────────────────────
