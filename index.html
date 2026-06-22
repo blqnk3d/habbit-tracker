@@ -605,6 +605,7 @@ let selectedDays = [0,1,2,3,4,5,6];
 let showOnlyPending = false;
 let sortMode = 0; // 0=default, 1=done-last, 2=alpha
 let contextHabitId = null;
+let contextMenuOpen = false;
 let statsDayOffset = 0; // 0=today, -1=yesterday, etc.
 
 // ─── GAMIFICATION ────────────────────────────────────────────────────────────
@@ -881,27 +882,38 @@ function buildHabitCard(habit, dateStr, d){
   const card = document.createElement('div');
   card.className = 'habit-card'+(done?' done':'');
   card.dataset.id = habit.id;
-  card.onclick = ()=>handleCardClick(habit,dateStr);
+  card.onclick = ()=>{if(!didSwipe&&!contextMenuOpen&&!longPressFired)handleCardClick(habit,dateStr)};
 
-  // Swipe-to-delete touch handling
-  let startX=0, currentX=0, swiping=false;
+  // Swipe-to-delete + Long-press (unified touch handling)
+  let startX=0, startY=0, currentX=0, swiping=false, pressTimer=null, touchMoved=false, didSwipe=false, longPressFired=false;
   card.addEventListener('touchstart',(e)=>{
     startX=e.touches[0].clientX;
+    startY=e.touches[0].clientY;
     currentX=startX;
     swiping=false;
+    touchMoved=false;
+    didSwipe=false;
+    longPressFired=false;
     wrap.classList.remove('swiping');
+    pressTimer=setTimeout(()=>{longPressFired=true;openContextMenu(null,habit.id,card)},500);
   },{passive:true});
   card.addEventListener('touchmove',(e)=>{
     currentX=e.touches[0].clientX;
-    const diff=startX-currentX;
-    if(diff>15){
+    const curY=e.touches[0].clientY;
+    const diffX=startX-currentX;
+    const diffY=Math.abs(startY-curY);
+    if(diffX>10||diffY>10) touchMoved=true;
+    if(diffX>15){
       swiping=true;
+      didSwipe=true;
+      clearTimeout(pressTimer);
       wrap.classList.add('swiping');
-      const offset=Math.min(diff,80);
+      const offset=Math.min(diffX,80);
       card.style.transform=`translateX(-${offset}px)`;
     }
   },{passive:true});
   card.addEventListener('touchend',()=>{
+    clearTimeout(pressTimer);
     const diff=startX-currentX;
     if(swiping&&diff>50){
       card.style.transform='translateX(-80px)';
@@ -909,6 +921,12 @@ function buildHabitCard(habit, dateStr, d){
       card.style.transform='';
     }
     wrap.classList.remove('swiping');
+    swiping=false;
+    // Prevent click after swipe
+    if(didSwipe){
+      setTimeout(()=>{didSwipe=false},10);
+      return;
+    }
   });
 
   // Context menu on right-click
@@ -917,14 +935,6 @@ function buildHabitCard(habit, dateStr, d){
     e.stopPropagation();
     openContextMenu(e, habit.id);
   };
-
-  // Long-press for context menu (replaces old edit-only long-press)
-  let pressTimer;
-  card.addEventListener('touchstart',()=>{
-    pressTimer=setTimeout(()=>openContextMenu(null,habit.id,card),500);
-  },{passive:true});
-  card.addEventListener('touchend',()=>clearTimeout(pressTimer));
-  card.addEventListener('touchmove',()=>clearTimeout(pressTimer));
 
   // Top row
   let topHTML = `<div class="habit-card-top">
@@ -1021,6 +1031,8 @@ function getHabitDetail(h){
 function handleCardClick(habit, ds){
   if(habit.type==='check'){
     toggleCheck(habit.id, ds);
+  } else {
+    openEditModal(habit.id);
   }
 }
 
@@ -1132,16 +1144,18 @@ function openContextMenu(e, habitId, cardEl){
   menu.style.left = x + 'px';
   menu.style.top = y + 'px';
   menu.classList.add('open');
+  contextMenuOpen = true;
   
-  // Close on click outside
+  // Close on click outside (delayed to avoid immediate close from triggering click)
   setTimeout(()=>{
     document.addEventListener('click', closeContextMenu, {once:true});
-    document.addEventListener('touchstart', closeContextMenu, {once:true});
-  },10);
+    document.addEventListener('contextmenu', closeContextMenu, {once:true});
+  },100);
 }
 
 function closeContextMenu(){
   document.getElementById('context-menu').classList.remove('open');
+  contextMenuOpen = false;
 }
 
 function contextEdit(){
